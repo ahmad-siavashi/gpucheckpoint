@@ -13,6 +13,9 @@
  * GC_ERR_NOT_READY or GC_ERR_BAD_ARGS (negative), or the CUDA driver error
  * code as is (positive). Pass any of them to gc_error_string() for the
  * message.
+ *
+ * Not thread-safe: serialise calls, including gc_init() and
+ * gc_error_string() (it returns a static buffer for unknown codes).
  */
 
 #ifndef GPUCHECKPOINT_H
@@ -75,7 +78,7 @@ int gc_unlock(int pid);
 /* Switch pid between running and checkpointed in one call. */
 int gc_toggle(int pid, const gc_gpu_pair_t *pairs, unsigned int pair_count);
 
-/* Parse a "GPU-<40 hex>=GPU-<40 hex>,..." device map into pairs.
+/* Parse a "GPU-<32 hex>=GPU-<32 hex>,..." device map into pairs.
  * pair_capacity is the size of pairs. On success *pair_count is set. */
 int gc_parse_device_map(const char *map, gc_gpu_pair_t *pairs,
                         unsigned int pair_capacity, unsigned int *pair_count);
@@ -84,7 +87,7 @@ int gc_parse_device_map(const char *map, gc_gpu_pair_t *pairs,
  * "restoring", or "unknown". */
 const char *gc_state_name(int state);
 
-/* Error message for an GC_* return code (GC_OK gives "no error"). */
+/* Error message for a GC_* or driver return code (GC_OK gives "no error"). */
 const char *gc_error_string(int rc);
 
 #ifdef __cplusplus

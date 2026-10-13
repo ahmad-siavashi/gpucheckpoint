@@ -23,7 +23,8 @@ make
 
 - `gpucheckpoint` - the command-line tool
 - `libgpucheckpoint.so` - the same operations as a library (see below)
-- `demo/demo` - a small example that uses the library
+- `demo/demo` - a small example that uses the library; pass it a CUDA
+  program to run, such as a build of `tests/counter.c`
 
 ## How it works
 
@@ -34,7 +35,7 @@ It finds these functions in `libcuda.so.1` at runtime.
 - No NVIDIA code, text, or documentation is included.
 - The NVIDIA driver is still required, like for every CUDA program.
 - NVIDIA's official tool is a thin client over the same API, so both
-  tools are functionally equivalent.
+  tools do the same for the core checkpoint workflow (see Limitations).
 
 ## Usage
 

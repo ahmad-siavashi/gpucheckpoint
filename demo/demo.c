@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Launches the test counter as a child, then checkpoints and restores it
+ * Launches a CUDA program (e.g. a build of tests/counter.c) as a child, then checkpoints and restores it
  * directly (no CLI, no process spawn per operation) and prints the time
  * each operation took.
  */
@@ -36,13 +36,20 @@ static void timed(const char *name, int rc)
 
 int main(int argc, char **argv)
 {
-    const char *counter = argc > 1 ? argv[1] : "./tests/counter-built";
+    const char *counter;
     pid_t child;
     unsigned long long t0, t1;
     int rc, state, tid;
 
-    if (gc_init() != GC_OK) {
-        fprintf(stderr, "gc_init failed: %s\n", gc_error_string(-1));
+    if (argc != 2) {
+        fprintf(stderr, "usage: %s <cuda-program>\n", argv[0]);
+        return 2;
+    }
+    counter = argv[1];
+
+    rc = gc_init();
+    if (rc != GC_OK) {
+        fprintf(stderr, "gc_init failed: %s\n", gc_error_string(rc));
         return 1;
     }
 
