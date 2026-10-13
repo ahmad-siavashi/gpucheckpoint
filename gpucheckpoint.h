@@ -10,8 +10,9 @@
  * no process is spawned.
  *
  * Every function returns GC_OK (0) on success. On failure it returns
- * GC_ERR_NOT_READY, GC_ERR_BAD_ARGS, or the negated driver error code
- * (pass it to gc_error_string() for the message).
+ * GC_ERR_NOT_READY or GC_ERR_BAD_ARGS (negative), or the CUDA driver error
+ * code as is (positive). Pass any of them to gc_error_string() for the
+ * message.
  */
 
 #ifndef GPUCHECKPOINT_H

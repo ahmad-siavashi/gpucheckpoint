@@ -146,7 +146,7 @@ static int ensure_driver_init(void)
     }
     rc = p_cu_init(0);
     if (rc != 0) {
-        return -rc;
+        return rc;
     }
     driver_inited = 1;
     return GC_OK;
@@ -156,7 +156,10 @@ int gc_get_state(int pid, int *state)
 {
     cu_result_t rc;
 
-    if (!ready || state == NULL) {
+    if (!ready) {
+        return GC_ERR_NOT_READY;
+    }
+    if (state == NULL) {
         return GC_ERR_BAD_ARGS;
     }
     rc = p_get_state(pid, state);
@@ -166,14 +169,17 @@ int gc_get_state(int pid, int *state)
         }
         rc = p_get_state(pid, state);
     }
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_get_restore_tid(int pid, int *tid)
 {
     cu_result_t rc;
 
-    if (!ready || tid == NULL) {
+    if (!ready) {
+        return GC_ERR_NOT_READY;
+    }
+    if (tid == NULL) {
         return GC_ERR_BAD_ARGS;
     }
     rc = p_get_restore_tid(pid, tid);
@@ -183,7 +189,7 @@ int gc_get_restore_tid(int pid, int *tid)
         }
         rc = p_get_restore_tid(pid, tid);
     }
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_lock(int pid, unsigned int timeout_ms)
@@ -199,7 +205,7 @@ int gc_lock(int pid, unsigned int timeout_ms)
     }
     args.timeout_ms = timeout_ms;
     rc = p_lock(pid, &args);
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_checkpoint(int pid)
@@ -214,7 +220,7 @@ int gc_checkpoint(int pid)
         return GC_ERR_NOT_READY;
     }
     rc = p_checkpoint(pid, &args);
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_restore(int pid, const gc_gpu_pair_t *pairs, unsigned int pair_count)
@@ -234,7 +240,7 @@ int gc_restore(int pid, const gc_gpu_pair_t *pairs, unsigned int pair_count)
     args.gpu_pairs = (gpu_pair_t *)pairs;
     args.gpu_pairs_count = pair_count;
     rc = p_restore(pid, &args);
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_unlock(int pid)
@@ -249,7 +255,7 @@ int gc_unlock(int pid)
         return GC_ERR_NOT_READY;
     }
     rc = p_unlock(pid, &args);
-    return rc == 0 ? GC_OK : -rc;
+    return rc;
 }
 
 int gc_toggle(int pid, const gc_gpu_pair_t *pairs, unsigned int pair_count)
@@ -278,7 +284,7 @@ int gc_toggle(int pid, const gc_gpu_pair_t *pairs, unsigned int pair_count)
         }
         return gc_unlock(pid);
     }
-    return -CUDA_ERROR_ILLEGAL_STATE;
+    return CUDA_ERROR_ILLEGAL_STATE;
 }
 
 static int is_hex(char c)
@@ -408,8 +414,8 @@ const char *gc_error_string(int rc)
         break;
     }
 
-    if (rc < 0 && p_cu_get_error_string != NULL &&
-        p_cu_get_error_string(-rc, &str) == 0 && str != NULL) {
+    if (rc > 0 && p_cu_get_error_string != NULL &&
+        p_cu_get_error_string(rc, &str) == 0 && str != NULL) {
         return str;
     }
     snprintf(buffer, sizeof(buffer), "driver error %d", rc);

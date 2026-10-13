@@ -3,7 +3,8 @@
  *
  * SPDX-License-Identifier: MIT
  *
- * Usage: lib-test <pid-of-running-cuda-process>
+ * Usage: lib-test <pid-of-running-cuda-process> [gpu-uuid]
+ * With a GPU UUID it also checks that a driver error keeps its own code.
  * Runs the full state machine in-process (no CLI) and checks that the
  * process returns to a running state at the end.
  */
@@ -40,8 +41,8 @@ int main(int argc, char **argv)
     int pid;
     int state;
 
-    if (argc != 2) {
-        fprintf(stderr, "usage: %s <pid>\n", argv[0]);
+    if (argc < 2 || argc > 3) {
+        fprintf(stderr, "usage: %s <pid> [gpu-uuid]\n", argv[0]);
         return 2;
     }
     pid = atoi(argv[1]);
@@ -61,6 +62,35 @@ int main(int argc, char **argv)
     expect(pid, "checkpoint", gc_checkpoint(pid), GC_STATE_CHECKPOINTED);
     expect(pid, "restore", gc_restore(pid, NULL, 0), GC_STATE_LOCKED);
     expect(pid, "unlock", gc_unlock(pid), GC_STATE_RUNNING);
+    if (argc == 3) {
+        gc_gpu_pair_t same;
+        unsigned int n = 0;
+        char map[160];
+        int rc;
+
+        /* The driver rejects a same-GPU remap; its code must not be
+         * mistaken for GC_ERR_NOT_READY or GC_ERR_BAD_ARGS. */
+        snprintf(map, sizeof(map), "%s=%s", argv[2], argv[2]);
+        gc_lock(pid, 0);
+        gc_checkpoint(pid);
+        if (gc_parse_device_map(map, &same, 1, &n) != GC_OK) {
+            printf("FAIL  parse same-GPU map\n");
+            failures++;
+        } else {
+            rc = gc_restore(pid, &same, n);
+            if (rc > 0) {
+                printf("PASS  driver rejection keeps its own code (%d: %s)\n",
+                       rc, gc_error_string(rc));
+            } else {
+                printf("FAIL  driver rejection returned rc=%d (%s)\n",
+                       rc, gc_error_string(rc));
+                failures++;
+            }
+        }
+        gc_restore(pid, NULL, 0);
+        gc_unlock(pid);
+    }
+
     expect(pid, "toggle off", gc_toggle(pid, NULL, 0), GC_STATE_CHECKPOINTED);
     expect(pid, "toggle on", gc_toggle(pid, NULL, 0), GC_STATE_RUNNING);
 

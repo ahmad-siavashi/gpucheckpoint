@@ -290,7 +290,7 @@ if $CC -fPIC -shared -o "$BUILD/libgpucheckpoint.so" gpucheckpoint.c -ldl \
      2>"$BUILD/lib-build.err" &&
     $CC -O2 -o "$BUILD/lib-test" tests/lib-test.c -I. -L"$BUILD" \
         -lgpucheckpoint -Wl,-rpath,"$BUILD" 2>>"$BUILD/lib-build.err"; then
-    if "$BUILD/lib-test" "$P" > "$BUILD/lib-test.out" 2>&1; then
+    if "$BUILD/lib-test" "$P" "$U" > "$BUILD/lib-test.out" 2>&1; then
         ok "in-process library (full state machine)"
     else
         bad "in-process library"
