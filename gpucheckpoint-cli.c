@@ -580,29 +580,22 @@ static int do_checkpoint(int pid)
     return rc == 0 ? 0 : 1;
 }
 
-static int do_restore(int pid, const char *device_map)
+static int do_restore(int pid, gpu_pair_t *pairs, unsigned int count)
 {
     restore_args_t args = {0};
-    gpu_pair_t *pairs = NULL;
     cu_result_t rc;
     char detail[64];
     unsigned long long t0;
 
-    if (device_map != NULL) {
-        if (parse_device_map(device_map, &pairs, &args.gpu_pairs_count) != 0) {
-            return usage_error("invalid device map (each side must be a GPU index or a GPU-<hex> UUID)");
-        }
-        args.gpu_pairs = pairs;
-    }
-
-    snprintf(detail, sizeof(detail), "pid=%d, gpus=%u", pid, args.gpu_pairs_count);
+    args.gpu_pairs = pairs;
+    args.gpu_pairs_count = count;
+    snprintf(detail, sizeof(detail), "pid=%d, gpus=%u", pid, count);
     t0 = now_ms();
     rc = p_restore(pid, &args);
     trace_call("cuCheckpointProcessRestore", detail, rc, t0);
     if (rc != 0) {
         fprintf(stderr, "failed to restore process %d: %s\n", pid, error_string(rc));
     }
-    free(pairs);
     return rc == 0 ? 0 : 1;
 }
 
@@ -734,7 +727,7 @@ static int do_get_restore_tid(int pid, int json)
     return 0;
 }
 
-static int do_toggle(int pid, const char *device_map)
+static int do_toggle(int pid, gpu_pair_t *pairs, unsigned int count)
 {
     int state = 0;
     cu_result_t rc;
@@ -758,7 +751,7 @@ static int do_toggle(int pid, const char *device_map)
         return 0;
     }
     if (state == STATE_CHECKPOINTED) {
-        if (do_restore(pid, device_map) != 0) {
+        if (do_restore(pid, pairs, count) != 0) {
             return 1;
         }
         if (do_unlock(pid) != 0) {
@@ -770,15 +763,15 @@ static int do_toggle(int pid, const char *device_map)
     }
     if (state == STATE_LOCKED) {
         fprintf(stderr, "process %d is locked; run 'checkpoint' to continue or 'unlock' to abort\n", pid);
-        return 1;
+        return EXIT_USAGE;
     }
     if (state == STATE_FAILED) {
         fprintf(stderr, "process %d is in the failed state; it cannot be recovered\n", pid);
-        return 1;
+        return EXIT_USAGE;
     }
     fprintf(stderr, "process %d is %s; wait for the operation to finish\n",
             pid, state_name(state));
-    return 1;
+    return EXIT_USAGE;
 }
 
 static int do_save(int pid)
@@ -797,12 +790,12 @@ static int do_save(int pid)
     return 0;
 }
 
-static int do_resume(int pid, const char *device_map)
+static int do_resume(int pid, gpu_pair_t *pairs, unsigned int count)
 {
     if (state_guard(pid, STATE_CHECKPOINTED, "resume") != 0) {
         return EXIT_USAGE;
     }
-    if (do_restore(pid, device_map) != 0) {
+    if (do_restore(pid, pairs, count) != 0) {
         return 1;
     }
     if (do_unlock(pid) != 0) {
@@ -903,6 +896,8 @@ int main(int argc, char **argv)
     const char *pid_text = NULL;
     const char *timeout_text = NULL;
     const char *device_map = NULL;
+    gpu_pair_t *pairs = NULL;
+    unsigned int pair_count = 0;
     long timeout_ms = 0;
     int pid = 0;
     int json_on = 0;
@@ -1003,6 +998,10 @@ int main(int argc, char **argv)
             return 1;
         }
     }
+    if (device_map != NULL &&
+        parse_device_map(device_map, &pairs, &pair_count) != 0) {
+        return usage_error("invalid device map (each side must be a GPU index or a GPU-<hex> UUID)");
+    }
 
     switch (cmd) {
     case CMD_STATE:
@@ -1012,7 +1011,7 @@ int main(int argc, char **argv)
         result = do_save(pid);
         break;
     case CMD_RESUME:
-        result = do_resume(pid, device_map);
+        result = do_resume(pid, pairs, pair_count);
         break;
     case CMD_LOCK:
         if (state_guard(pid, STATE_RUNNING, "lock") != 0) {
@@ -1030,7 +1029,7 @@ int main(int argc, char **argv)
         if (state_guard(pid, STATE_CHECKPOINTED, "restore") != 0) {
             return EXIT_USAGE;
         }
-        result = do_restore(pid, device_map);
+        result = do_restore(pid, pairs, pair_count);
         break;
     case CMD_UNLOCK:
         if (state_guard(pid, STATE_LOCKED, "unlock") != 0) {
@@ -1039,7 +1038,7 @@ int main(int argc, char **argv)
         result = do_unlock(pid);
         break;
     case CMD_TOGGLE:
-        result = do_toggle(pid, device_map);
+        result = do_toggle(pid, pairs, pair_count);
         break;
     case CMD_RESTORE_TID:
         result = do_get_restore_tid(pid, json_on);

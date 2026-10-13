@@ -209,6 +209,7 @@ err_case "bogus opt"    2 state --bogus
 err_case "no cmd"       2
 err_case "missing pid"  2 state
 err_case "bad devmap"   2 restore -p 1 -d foo=bar
+err_case "bad devmap resume" 2 resume -p 1 -d foo=bar
 err_case "bad index"    2 restore -p 1 -d 99=1
 err_case "bad combo"    2 checkpoint -p 1 -t 5
 err_case "extra arg"    2 state -p 1 extra
