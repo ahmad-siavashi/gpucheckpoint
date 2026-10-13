@@ -454,11 +454,14 @@ static int parse_device_map(const char *map, gpu_pair_t **pairs_out, unsigned in
         }
         count++;
         if (count >= capacity) {
+            gpu_pair_t *grown;
+
             capacity *= 2;
-            pairs = realloc(pairs, capacity * sizeof(pairs[0]));
-            if (pairs == NULL) {
+            grown = realloc(pairs, capacity * sizeof(pairs[0]));
+            if (grown == NULL) {
                 goto fail;
             }
+            pairs = grown;
         }
     }
 

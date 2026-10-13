@@ -69,7 +69,9 @@ Options:
 - `-d, --device-map <map>` - `restore`, `resume`, `toggle`. Format:
   `old=new` pairs, comma separated. Each side is a GPU index (`0`, `1`,
   ...) or a UUID (`GPU-<32 hex digits>`, with or without the dashes
-  nvidia-smi prints). It must name every checkpointed GPU.
+  nvidia-smi prints). Indexes follow CUDA device order (as shown by
+  `gpus`), so `CUDA_VISIBLE_DEVICES` and `CUDA_DEVICE_ORDER` change them.
+  It must name every checkpointed GPU.
   The target GPU must be the same chip type with enough memory.
   (Driver 580 or newer.)
 - `--json` - `state`, `restore-tid`, `scan`. Machine-readable output.
