@@ -28,7 +28,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define MIN_DRIVER_VERSION 5500
 #define CUDA_ERROR_NOT_INITIALIZED 3
 #define TOOL_VERSION "1.1.0"
 
@@ -71,7 +70,6 @@ typedef struct {
 typedef cu_result_t (*fn_get_proc_address)(const char *, void **, int,
                                            unsigned long long);
 typedef cu_result_t (*fn_init)(unsigned int);
-typedef cu_result_t (*fn_driver_version)(int *);
 typedef cu_result_t (*fn_error_string)(cu_result_t, const char **);
 typedef cu_result_t (*fn_get_state)(int, int *);
 typedef cu_result_t (*fn_get_restore_tid)(int, int *);
@@ -100,7 +98,6 @@ static void *resolve_symbol(const char *name)
 }
 
 static fn_init p_cu_init;
-static fn_driver_version p_cu_driver_version;
 static fn_error_string p_cu_get_error_string;
 static fn_get_state p_get_state;
 static fn_get_restore_tid p_get_restore_tid;
@@ -496,7 +493,6 @@ static void load_driver(void)
     p_cu_get_proc_address = (fn_get_proc_address)dlsym(handle, "cuGetProcAddress");
 
     p_cu_init = (fn_init)resolve_symbol("cuInit");
-    p_cu_driver_version = (fn_driver_version)resolve_symbol("cuDriverGetVersion");
     p_cu_get_error_string = (fn_error_string)resolve_symbol("cuGetErrorString");
     p_get_state = (fn_get_state)resolve_symbol("cuCheckpointProcessGetState");
     p_get_restore_tid = (fn_get_restore_tid)resolve_symbol("cuCheckpointProcessGetRestoreThreadId");
@@ -512,19 +508,8 @@ static void load_driver(void)
         p_unlock == NULL) {
         fprintf(stderr,
                 "Error: libcuda.so.1 does not export the checkpoint API "
-                "(display driver 570 or higher required)\n");
+                "(display driver 570 or newer required)\n");
         exit(1);
-    }
-
-    if (p_cu_driver_version != NULL) {
-        int version = 0;
-
-        if (p_cu_driver_version(&version) == 0 && version > 0 && version < MIN_DRIVER_VERSION) {
-            fprintf(stderr,
-                    "Error: display driver %d.%02d is too old, version 550 or higher is required\n",
-                    version / 1000, version % 1000);
-            exit(1);
-        }
     }
 }
 

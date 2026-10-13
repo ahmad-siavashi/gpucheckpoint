@@ -17,7 +17,6 @@
 #define CUDA_ERROR_NOT_INITIALIZED 3
 #define CUDA_ERROR_ILLEGAL_STATE 400
 #define CUDA_TOOLKIT_VERSION 13000
-#define MIN_DRIVER_VERSION 5500
 
 typedef int cu_result_t;
 
@@ -54,7 +53,6 @@ typedef struct {
 typedef cu_result_t (*fn_get_proc_address)(const char *, void **, int,
                                            unsigned long long);
 typedef cu_result_t (*fn_init)(unsigned int);
-typedef cu_result_t (*fn_driver_version)(int *);
 typedef cu_result_t (*fn_error_string)(cu_result_t, const char **);
 typedef cu_result_t (*fn_get_state)(int, int *);
 typedef cu_result_t (*fn_get_restore_tid)(int, int *);
@@ -69,7 +67,6 @@ static void *driver_handle;
 
 static fn_get_proc_address p_cu_get_proc_address;
 static fn_init p_cu_init;
-static fn_driver_version p_cu_driver_version;
 static fn_error_string p_cu_get_error_string;
 static fn_get_state p_get_state;
 static fn_get_restore_tid p_get_restore_tid;
@@ -109,7 +106,6 @@ int gc_init(void)
     p_cu_get_proc_address = (fn_get_proc_address)dlsym(handle, "cuGetProcAddress");
 
     p_cu_init = (fn_init)resolve_symbol("cuInit");
-    p_cu_driver_version = (fn_driver_version)resolve_symbol("cuDriverGetVersion");
     p_cu_get_error_string = (fn_error_string)resolve_symbol("cuGetErrorString");
     p_get_state = (fn_get_state)resolve_symbol("cuCheckpointProcessGetState");
     p_get_restore_tid = (fn_get_restore_tid)resolve_symbol("cuCheckpointProcessGetRestoreThreadId");
@@ -122,15 +118,6 @@ int gc_init(void)
         p_lock == NULL || p_checkpoint == NULL || p_restore == NULL ||
         p_unlock == NULL) {
         return GC_ERR_NOT_READY;
-    }
-
-    if (p_cu_driver_version != NULL) {
-        int version = 0;
-
-        if (p_cu_driver_version(&version) == 0 && version > 0 &&
-            version < MIN_DRIVER_VERSION) {
-            return GC_ERR_NOT_READY;
-        }
     }
 
     ready = 1;
