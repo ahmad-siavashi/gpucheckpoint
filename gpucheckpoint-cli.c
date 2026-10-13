@@ -20,6 +20,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -549,7 +550,7 @@ static int do_lock(int pid, long timeout_ms)
 {
     lock_args_t args = {0};
     cu_result_t rc;
-    char detail[32];
+    char detail[64];
     unsigned long long t0;
 
     snprintf(detail, sizeof(detail), "pid=%d, timeout=%ld", pid, timeout_ms);
@@ -985,8 +986,8 @@ int main(int argc, char **argv)
         char *end = NULL;
         long value = strtol(timeout_text, &end, 10);
 
-        if (end == timeout_text || *end != '\0' || value < 0) {
-            return usage_error("--timeout must be a non-negative integer");
+        if (end == timeout_text || *end != '\0' || value < 0 || value > UINT_MAX) {
+            return usage_error("--timeout must be an integer from 0 to 4294967295");
         }
         timeout_ms = value;
     }
